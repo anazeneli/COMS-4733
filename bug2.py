@@ -11,16 +11,15 @@ hits = []
 def scan_callback(msg):
     global g_range_ahead
     global g_range_right
-    global g_range_min
-
-
+    global g_range_left
+    
     g_range_ahead = msg.ranges[len(msg.ranges)/2]
     g_range_right = msg.ranges[0]
-    g_range_min  = min(msg.ranges)
+    g_range_left  = msg.ranges[len(msg.ranges) -1]
 
-g_range_ahead = 1 # anything to start
+g_range_ahead = 1 # initialize globals
 g_range_right = 1
-g_range_min  = 1
+g_range_left  = 1
 
 (position, rotation) = t.get_odom()
 start_theta = rotation
@@ -51,35 +50,51 @@ class bug2():
         while not rospy.is_shutdown():
             update_odom()
             print "angle", angle_to_goal
-            print g_range_ahead, g_range_right
-
-            if g_range_ahead < 0.9:
+            print g_range_left, g_range_ahead, g_range_right
+            if g_range_ahead < 3:
+                print "Approaching Obstacle"
+                
+            if g_range_ahead < 0.8:
                 t.stopRobot()
                 print "OBSTACLE"
                 # STORE HIT POINT
-                (position, rotation) = t.get_odom()
+                update_odom()
                 x_hit = x + g_range_ahead
-                y_hit = position.y
+                y_hit = y
                 hits.append([x_hit, y_hit])
                 print hits
                 if g_range_min < 0.8:
                     print "CLOSE", g_range_min
                     t.rotate(10)
-
+                    
                 # TURN LEFT
+                print "Turning LEFT",g_range_left,  g_range_right, g_range_ahead
+                if isnan(g_range_right):
+                    while not isnan(g_range_ahead):
+                        print g_range_right, g_range_ahead
+                        t.rotate(20)
+                    t.translate(0.25)
+
                 # until nothing detected on right w/in 3m
-                while not isnan(g_range_right) or g_range_right > 3:
-                    print "TURN LEFT"
+                while not isnan(g_range_right) or g_range_right > 3 :
+                    print g_range_right, g_range_ahead
                     t.rotate(15)
+
+                print "follow obstacle", g_range_left, g_range_right, g_range_ahead
 
                 t.translate(1)
                 update_odom()
 
-                while t.on_mline(y) == False :
-                    print "Navigating", g_range_ahead, g_range_right
+                while t.on_mline(y) == False:
+                    print "Navigating "
+                    print g_range_left, g_range_ahead, g_range_right
+
+                    if g_range_ahead < 0.8:
+                        t.translate(-0.2)
+
                     t.translate(0.1)
 
-                    if isnan(g_range_right):
+                    if isnan(g_range_right) or g_range_right > 3:
                         t.rotate(-30)
 
                     if g_range_right < 1.6:
@@ -88,12 +103,18 @@ class bug2():
 
                     update_odom()
 
-                # once on m-line again, readjust toward goal
-                if t.on_mline(y):
-                    dif = angle_to_goal - theta
-                    if abs(dif ) > 0.1:
-                        t.rotate(degrees(dif))
+                    if t.on_mline(y):
+                        t.stopRobot()
+                        dif = angle_to_goal - theta
+                        if abs(dif) > 0.1:
+                            t.rotate(degrees(dif))
+                            
+            elif abs(goal.x - x ) < 0.15:
                 t.stopRobot()
+                dif = angle_to_goal - theta
+                if abs(dif) > 0.1:
+                    t.rotate(degrees(dif))
+                t.shutdown()    
             else:
                 # go one meter at a time until obstacle found
                 # or if off m-line, readjust
@@ -102,7 +123,7 @@ class bug2():
                 if abs(dif ) > 0.1:
                     t.rotate(degrees(dif))
 
-                t.translate(1)
+                t.translate(0.25)
 
 
 
