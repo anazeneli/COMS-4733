@@ -36,9 +36,10 @@ def update_odom():
     inc_y = goal.y - y
     angle_to_goal = atan2(inc_y, inc_x)
 
-def reached_hit_point(x,y):
+def hit_point_check(x,y):
+    global hit_count
     for i, j in hits:
-        if i -x < 0.1 and j - y < 0.1:
+        if x - i  < -0.2 and abs(j - y) < 0.2:
             return True
 
     return False
@@ -46,7 +47,8 @@ def reached_hit_point(x,y):
 class bug2():
     def __init__(self):
         scan_sub = rospy.Subscriber('scan', LaserScan, scan_callback)
-
+        hit_count = 0
+        
         while not rospy.is_shutdown():
             update_odom()
             print "angle", angle_to_goal
@@ -59,7 +61,7 @@ class bug2():
                 print "OBSTACLE"
                 
                 if g_range_ahead < 0.65:
-                    t.translate(-0.15)
+                    t.translate(-0.2)
                 
                 # STORE HIT POINT
                 update_odom()
@@ -90,7 +92,7 @@ class bug2():
                 t.translate(1)
                 update_odom()
 
-                while t.on_mline(y) == False:
+                while t.on_mline(y) == False or hit_point_check(x,y) == False:
                     print "Navigating "
                     print g_range_left, g_range_ahead, g_range_right
 
@@ -122,7 +124,7 @@ class bug2():
                                 t.rotate(degrees(dif))
                         break
                         
-                if  hit_point_check(x,y):
+                if  hit_point_check(x,y) :
                     print "HIT"
                     while isnan(g_range_right):
                         t.rotate(-15)
