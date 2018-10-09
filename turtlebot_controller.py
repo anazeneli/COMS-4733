@@ -63,7 +63,7 @@ class TurtlebotController() :
                 rospy.signal_shutdown("tf Exception")
 
     def on_mline(self,y):
-        if y <= 0.1 and y > -0.1 :
+        if y <= 0.15 and y > -0.15 :
             return True
         else:
             return False
@@ -120,7 +120,7 @@ class TurtlebotController() :
             move_cmd.angular.z = angular_speed
 
         # convert absolute value of degrees to radians
-        angle = (int(abs(angle)) * pi ) / 180
+        angle = (float(abs(angle)) * pi ) / 180
 
         # Rotate for a time to go goal_angle degrees
         ticks = int(angle * rate)
