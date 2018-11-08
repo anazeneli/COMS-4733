@@ -10,6 +10,18 @@ import matplotlib.patches as patches
 import numpy as np
 import random, math
 
+
+# global variables
+step_size = 50.0
+
+# grid bounds
+xtop = 600
+xbottom = 0
+
+ytop = 600
+ybottom = 0
+
+
 def build_obstacle_course(obstacle_path, ax):
     vertices = list()
     codes = [Path.MOVETO]
@@ -60,35 +72,30 @@ def draw_rand(start, rand):
     plt.show()
 
 
-def readObs(filename):
-	# opening the file
-	obsFile = open(filename, 'r')
 
-	# dictionaray of obs in the file
-	obstacles = {}
+# funciton that generates the ranomd configuration
 
-	# first line of the file is the number of objects
-	numObs = int(obsFile.readline());
+def get_rand(pos):
+    x = pos[0]
+    y = pos[1]
 
-	# print "The number of obstacles is: ", numObs
-	# iterating over all the obstaces
-	for x in range(numObs):
-		# firstline of each obstacle is the number of edges
-		numEdges = int(obsFile.readline());
-		# print "the number of edges of:", x, "is", numEdges
-		# iterating ove all the edges
-		corners = []
-		for y in range(numEdges):
+    new_x = -1
+    new_y = -1
 
-			c = obsFile.readline();
-			# removing whitespace and storing the resulting words in array
-			c = c.split();
-			corners.append((float(c[0])/scale, float(c[1])/scale))
-		# print corners
-		# UPDATING THE dictionaray
-		obstacles[x] = corners
+    # add conditions so the new config is always inside the grid
+    while ((new_x > xtop)|(new_y > ytop))|((new_x < xbottom)|(new_y < ybottom)):
+        angle = random.uniform(0, 2*math.pi)
+        new_x = x + step_size*math.cos(angle)
+        new_y = y + step_size*math.sin(angle)
 
-	return obstacles
+    # print new_x, new_y
+    ax.add_patch(patches.Circle([new_x, new_y], facecolor='xkcd:violet'))
+    plt.plot([x, new_x], [y, new_y])
+
+    return [new_x, new_y]
+
+    # print pow(new_x,2) + pow(new_y,2)
+    # assert 1==2
 
 
 if __name__ == "__main__":
@@ -104,4 +111,12 @@ if __name__ == "__main__":
     path = build_obstacle_course(args.obstacle_path, ax)
     start, goal = add_start_and_goal(args.start_goal_path, ax)
 
+
+    st = start
+    for x in range(20):    
+        st = get_rand(st);
+
     plt.show()
+
+    # print "i will not be pritned"
+    # plt.show()
