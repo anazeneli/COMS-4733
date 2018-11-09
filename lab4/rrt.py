@@ -8,6 +8,7 @@ from matplotlib.path import Path
 import matplotlib.patches as patches
 import numpy as np
 import random, math
+from math import cos, sin, atan
 
 # global variables
 step_size = 50.0
@@ -106,6 +107,35 @@ def get_rand(pos):
 
     return [new_x, new_y]
 
+def build_rrt(q, n):
+    T = Tree()
+    T.add_vertex(q)
+
+    for k in range(n):
+        q_rand = random_state(q)
+        extend(T, q_rand)
+
+    return T
+
+# TODO: write a function to progress the tree
+# from the initial q point to a random point
+# in free space
+# selects nearest vertex in rrt to given point
+def extend(T, q):
+    q_near = nearest_neighbor(q, T)
+    q_new = new_state(q, q_near)
+
+    if q_new:
+        T.add_vertex(q_new)
+        T.add_edge(q_near, q_new)
+
+        if q_new == q:
+            return 'Reached'
+        else:
+            return 'Advanced'
+
+    return 'Trapped'
+
 def random_state(st):
     end = get_rand(st);
     theLine = Line((st[0], st[1]),(end[0],end[1]))
@@ -123,39 +153,34 @@ def random_state(st):
 
     return end
 
-def build_rrt(q, n):
-    T = Tree()
-    T.vertices.append(q)
-
-    for k in range(n):
-        q_rand = random_state(q)
-
-        # extend(T, q_rand)
-
-    return T
-
-# TODO: write a function to progress the tree
-# from the initial q point to a random point
-# in free space
-# selects nearest vertex in rrt to given point
-def extend(T, q):
-    q_near = nearest_neighbor(q, T)
-    q, q_new = new_state(q_near)
-
-    T.add_vertex(q_new)
-    T.add_edge(q_near, q_new)
-
-    if q_new == q:
-        return 'Reached'
-    else:
-        return 'Advanced'
-
-    return 'Trapped'
-
 # TODO: implement k-d tree
+# find closest neighbor of q in T
 def nearest_neighbor(q, T):
 
-    return (0,0)
+    return q
+
+# progress by step_size along straight line between
+# q_near and q_rand (from q1 through q2 a distance set by step size)
+def new_state(q1, q2):
+    # protect against undefined slope
+    if (q2[0] - q1[0]) == 0:
+        new_y = q2[1] + step_size
+
+        return q2[0], new_y
+    # protect against slope of zero
+    elif q2[1] - q1[1] == 0:
+        new_x = q2[0] + step_size
+
+        return new_x, q2[1]
+    else:
+        m = float(q2[1] - q1[1])/ (q2[0] - q1[0])
+        b = -m*q2[1] + q2[0]
+        angle = atan(q2[1]/float(q2[0]))
+
+        x = step_size * cos(angle)
+        y = step_size * sin(angle)
+
+        return (x,y)
 
 if __name__ == "__main__":
     import argparse
