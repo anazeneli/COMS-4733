@@ -100,7 +100,6 @@ def readObs(filename):
         # iterating ove all the edges
         corners = []
         for y in range(numEdges):
-
             c = obsFile.readline();
             # removing whitespace and storing the resulting words in array
             c = c.split();
@@ -116,7 +115,6 @@ def readObs(filename):
 
     return obstacles
 
-
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -131,8 +129,10 @@ if __name__ == "__main__":
     start, goal = add_start_and_goal(args.start_goal_path, ax)
 
     obsLine = readObs("world_obstacles.txt")
+
     # assert 1 == 12
 
+    print len(obsLine)
     st = start
     for x in range(200):
         end = get_rand(st);
@@ -146,5 +146,9 @@ if __name__ == "__main__":
             ax.add_patch(patches.Circle([end[0], end[1]], facecolor='xkcd:violet'))
             plt.plot([st[0], end[0]], [st[1], end[1]])
             st = end
+            # remove exploration nodes from path
+            obsLine.append(theLine)
+
+    print len(obsLine)
 
     plt.show()
