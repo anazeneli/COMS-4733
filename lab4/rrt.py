@@ -2,6 +2,7 @@
 # usage:  python rrt.py obstacles_file start_goal_file
 from __future__ import division
 from line import Line
+from tree import Tree
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 import matplotlib.patches as patches
@@ -10,13 +11,46 @@ import random, math
 
 # global variables
 step_size = 50.0
-
 # grid bounds
 xtop = 600
 xbottom = 0
-
 ytop = 600
 ybottom = 0
+
+# function that reads the obstacle file and returns line of obstacles
+def readObs(filename):
+    # opening the file
+    obsFile = open(filename, 'r')
+
+    # dictionaray of obs in the file
+    obstacles = []
+
+    # first line of the file is the number of objects
+    numObs = int(obsFile.readline());
+
+    # print "The number of obstacles is: ", numObs
+    # iterating over all the obstaces
+    for x in range(numObs):
+        # firstline of each obstacle is the number of edges
+        numEdges = int(obsFile.readline());
+        # print "the number of edges of:", x, "is", numEdges
+        # iterating ove all the edges
+        corners = []
+        for y in range(numEdges):
+            c = obsFile.readline();
+            # removing whitespace and storing the resulting words in array
+            c = c.split();
+            corners.append((float(c[0]), float(c[1])))
+
+        for x in range(len(corners)):
+            if x == len(corners)-1:
+                theLine = Line((corners[len(corners)-1][0], corners[len(corners)-1][1]), (corners[0][0], corners[0][1]))
+                obstacles.append(theLine)
+            else:
+                theLine = Line((corners[x][0], corners[x][1]), (corners[x+1][0], corners[x+1][1]))
+                obstacles.append(theLine)
+
+    return obstacles
 
 def build_obstacle_course(obstacle_path, ax):
     vertices = list()
@@ -70,50 +104,58 @@ def get_rand(pos):
         new_x = x + step_size*math.cos(angle)
         new_y = y + step_size*math.sin(angle)
 
-    # print new_x, new_y
-    # newLine = Line((x,y),(new_x, new_y))
-    # ax.add_patch(patches.Circle([new_x, new_y], facecolor='xkcd:violet'))
-    # plt.plot([x, new_x], [y, new_y])
-
     return [new_x, new_y]
 
-    # print pow(new_x,2) + pow(new_y,2)
-    # assert 1==2f
+def random_state(st):
+    end = get_rand(st);
+    theLine = Line((st[0], st[1]),(end[0],end[1]))
 
-# function that reads the obstacle file and returns line of obstacles
-def readObs(filename):
-    # opening the file
-    obsFile = open(filename, 'r')
+    draw = 0
+    for l in obsLine:
+        if (theLine.intersect(l))&(l.intersect(theLine)):
+            draw = 1
+            break
+    if draw == 0:
+        ax.add_patch(patches.Circle([end[0], end[1]], facecolor='xkcd:violet'))
+        plt.plot([st[0], end[0]], [st[1], end[1]])
+        # remove exploration nodes from path
+        obsLine.append(theLine)
 
-    # dictionaray of obs in the file
-    obstacles = []
+    return end
 
-    # first line of the file is the number of objects
-    numObs = int(obsFile.readline());
+def build_rrt(q, n):
+    T = Tree()
+    T.vertices.append(q)
 
-    print "The number of obstacles is: ", numObs
-    # iterating over all the obstaces
-    for x in range(numObs):
-        # firstline of each obstacle is the number of edges
-        numEdges = int(obsFile.readline());
-        print "the number of edges of:", x, "is", numEdges
-        # iterating ove all the edges
-        corners = []
-        for y in range(numEdges):
-            c = obsFile.readline();
-            # removing whitespace and storing the resulting words in array
-            c = c.split();
-            corners.append((float(c[0]), float(c[1])))
+    for k in range(n):
+        q_rand = random_state(q)
 
-        for x in range(len(corners)):
-            if x == len(corners)-1:
-                theLine = Line((corners[len(corners)-1][0], corners[len(corners)-1][1]), (corners[0][0], corners[0][1]))
-                obstacles.append(theLine)
-            else:
-                theLine = Line((corners[x][0], corners[x][1]), (corners[x+1][0], corners[x+1][1]))
-                obstacles.append(theLine)
+        # extend(T, q_rand)
 
-    return obstacles
+    return T
+
+# TODO: write a function to progress the tree
+# from the initial q point to a random point
+# in free space
+# selects nearest vertex in rrt to given point
+def extend(T, q):
+    q_near = nearest_neighbor(q, T)
+    q, q_new = new_state(q_near)
+
+    T.add_vertex(q_new)
+    T.add_edge(q_near, q_new)
+
+    if q_new == q:
+        return 'Reached'
+    else:
+        return 'Advanced'
+
+    return 'Trapped'
+
+# TODO: implement k-d tree
+def nearest_neighbor(q, T):
+
+    return (0,0)
 
 if __name__ == "__main__":
     import argparse
@@ -130,25 +172,23 @@ if __name__ == "__main__":
 
     obsLine = readObs("world_obstacles.txt")
 
-    # assert 1 == 12
-
-    print len(obsLine)
-    st = start
-    for x in range(200):
-        end = get_rand(st);
-        theLine = Line((st[0], st[1]),(end[0],end[1]))
-
-        draw = 0
-        for l in obsLine:
-            if (theLine.intersect(l))&(l.intersect(theLine)):
-                draw = 1
-        if draw == 0:
-            ax.add_patch(patches.Circle([end[0], end[1]], facecolor='xkcd:violet'))
-            plt.plot([st[0], end[0]], [st[1], end[1]])
-            st = end
-            # remove exploration nodes from path
-            obsLine.append(theLine)
-
-    print len(obsLine)
+    build_rrt(start, 200)
+    #
+    # st = start
+    # for x in range(10000):
+    #     end = get_rand(st);
+    #     theLine = Line((st[0], st[1]),(end[0],end[1]))
+    #
+    #     draw = 0
+    #     for l in obsLine:
+    #         if (theLine.intersect(l))&(l.intersect(theLine)):
+    #             draw = 1
+    #             break
+    #     if draw == 0:
+    #         ax.add_patch(patches.Circle([end[0], end[1]], facecolor='xkcd:violet'))
+    #         plt.plot([st[0], end[0]], [st[1], end[1]])
+    #         st = end
+    #         # remove exploration nodes from path
+    #         obsLine.append(theLine)
 
     plt.show()
