@@ -48,4 +48,5 @@ class Tree():
     #     self.edges.append((x_near, x_new))
     #
     # def add_vertex(self, x):
-    #     self.vertices.append(x)
+    #     if x not in self.vertices:
+    #         self.vertices.append(x)

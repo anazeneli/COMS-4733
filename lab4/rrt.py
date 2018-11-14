@@ -12,7 +12,7 @@ import random, math
 from math import cos, sin, atan
 
 # global variables
-step_size = 84
+step_size = 75
 # grid bounds
 xtop = 600
 xbottom = 0
@@ -96,14 +96,8 @@ def add_start_and_goal(start_goal_path, ax):
 
 # function that generates the ranomd configuration
 def get_rand(pos = None):
-    if pos:
-        inc_x = random.randint(1,600)
-        inc_y = random.randint(1,600)
-
-    else:
-        # Bias the random points
-        inc_x = random.randint(goal[0] - 2*step_size, goal[0]+ 2*step_size)
-        inc_y = random.randint(goal[1] - 2*step_size, goal[1]+ 2*step_size)
+    inc_x = random.randint(1,600)
+    inc_y = random.randint(1,600)
 
     new_x = -1
     new_y = -1
@@ -144,28 +138,25 @@ def build_rrt(q, goal,n):
     T.add_vertex(q)
 
     # while(distance(q, goal) > step_size):
+    # bias 5% of time toward goal
+    bias_factor = n * 0.05
+    divisor = n / bias_factor
+
     for k in range(n):
-        q_rand = get_rand()
+        # add bias to goal
+        if k % divisor == 0:
+            q_rand = goal
+        else:
+            q_rand = get_rand()
+
         q_new = extend(T, q_rand)
 
-        if q_new != 'Trapped':
-            q = q_new
-
-            if distance(q_new, goal) < step_size:
-                if collision_free(q_new, goal) :
-                    T.add_edge(q_new, goal)
-                    T.add_vertex(goal)
-                    draw(q_new, goal)
-                    print "GOAL REACHED"
-                    break
-        else:
-            q_rand = get_rand(q_new)
 
     print "iterations over"
 
     return T
 
-# TODO: write a function to progress the tree
+# progress the tree
 # from the initial q point to a random point
 # in free space
 # selects nearest vertex in rrt to given point
@@ -189,6 +180,15 @@ def extend(T, q):
             near_list.append(tuple(kdt[i][j]))
 
     for q_near in near_list :
+        # q_new = new_state(q_near, q)
+        # if q_new :
+        #     if collision_free(q_near, q_new):
+        #         T.add_edge(q_near, q_new)
+        #         T.add_vertex(q_new)
+        #         draw(q_near, q_new)
+        #
+        #         return q_new
+
         if T.check_expansion(q_near):
             q_new = new_state(q_near, q)
             if q_new :
@@ -292,7 +292,7 @@ if __name__ == "__main__":
 
     obsLine = readObs("world_obstacles.txt")
 
-    build_rrt(start, goal, 5000)
+    build_rrt(start, goal, 10000)
     #
     # st = start
     # for x in range(10000):
