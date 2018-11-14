@@ -5,18 +5,21 @@ from line import Line
 from tree import Tree
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
+from sklearn.neighbors import KDTree
 import matplotlib.patches as patches
 import numpy as np
 import random, math
 from math import cos, sin, atan
 
 # global variables
-step_size = 50.0
+step_size = 84
 # grid bounds
 xtop = 600
 xbottom = 0
 ytop = 600
 ybottom = 0
+
+global start, goal
 
 # function that reads the obstacle file and returns line of obstacles
 def readObs(filename):
@@ -92,9 +95,15 @@ def add_start_and_goal(start_goal_path, ax):
     return start, goal
 
 # function that generates the ranomd configuration
-def get_rand(pos):
-    x = pos[0]
-    y = pos[1]
+def get_rand(pos = None):
+    if pos:
+        inc_x = random.randint(1,600)
+        inc_y = random.randint(1,600)
+
+    else:
+        # Bias the random points
+        inc_x = random.randint(goal[0] - 2*step_size, goal[0]+ 2*step_size)
+        inc_y = random.randint(goal[1] - 2*step_size, goal[1]+ 2*step_size)
 
     new_x = -1
     new_y = -1
@@ -102,18 +111,57 @@ def get_rand(pos):
     # add conditions so the new config is always inside the grid
     while ((new_x > xtop)|(new_y > ytop))|((new_x < xbottom)|(new_y < ybottom)):
         angle = random.uniform(0, 2*math.pi)
-        new_x = x + step_size*math.cos(angle)
-        new_y = y + step_size*math.sin(angle)
+        new_x = inc_x*math.cos(angle)
+        new_y = inc_y*math.sin(angle)
 
-    return [new_x, new_y]
+    return round(new_x,2), round(new_y,2)
 
-def build_rrt(q, n):
-    T = Tree()
+def distance(p1, p2):
+    x1, y1 = p1
+    x2, y2 = p2
+
+    dx = x2 - x1
+    dy = y2 - y1
+
+    return math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
+
+# TODO: implement k-d tree
+# find closest neighbor of q in T
+def nearest_neighbor(q, T):
+    best_pt   = q
+    best_dist = xtop * 2
+
+    for v in T.vertices:
+        curr_dist = distance(q, v)
+        if curr_dist < best_dist:
+            best_pt   = v
+            best_dist = curr_dist
+
+    return best_pt
+
+def build_rrt(q, goal,n):
+    T = Tree(q, goal)
     T.add_vertex(q)
 
+    # while(distance(q, goal) > step_size):
     for k in range(n):
-        q_rand = random_state(q)
-        extend(T, q_rand)
+        q_rand = get_rand()
+        q_new = extend(T, q_rand)
+
+        if q_new != 'Trapped':
+            q = q_new
+
+            if distance(q_new, goal) < step_size:
+                if collision_free(q_new, goal) :
+                    T.add_edge(q_new, goal)
+                    T.add_vertex(goal)
+                    draw(q_new, goal)
+                    print "GOAL REACHED"
+                    break
+        else:
+            q_rand = get_rand(q_new)
+
+    print "iterations over"
 
     return T
 
@@ -122,65 +170,112 @@ def build_rrt(q, n):
 # in free space
 # selects nearest vertex in rrt to given point
 def extend(T, q):
-    q_near = nearest_neighbor(q, T)
-    q_new = new_state(q, q_near)
+    q_new = None
 
-    if q_new:
-        T.add_vertex(q_new)
-        T.add_edge(q_near, q_new)
+    v = T.vertices
+    kdt = np.array(v)
 
-        if q_new == q:
-            return 'Reached'
-        else:
-            return 'Advanced'
+    # nearest neighbor calculation
+    tree = KDTree(kdt, metric='euclidean')
+    # selects nearest vertex in rrt to given point
+    if len(v) < 15:
+        dist, ind = tree.query([q], k = len(v))
+    else:
+        dist, ind = tree.query([q], k = 15)
+
+    near_list = []
+    for i in list(ind):
+        for j in range(len(i)):
+            near_list.append(tuple(kdt[i][j]))
+
+    for q_near in near_list :
+        if T.check_expansion(q_near):
+            q_new = new_state(q_near, q)
+            if q_new :
+                if collision_free(q_near, q_new):
+                    T.add_edge(q_near, q_new)
+                    T.add_vertex(q_new)
+                    draw(q_near, q_new)
+
+                    return q_new
 
     return 'Trapped'
 
-def random_state(st):
-    end = get_rand(st);
+# boolean check if point is collision-free
+def collision_free(st,end):
     theLine = Line((st[0], st[1]),(end[0],end[1]))
 
-    draw = 0
     for l in obsLine:
         if (theLine.intersect(l))&(l.intersect(theLine)):
-            draw = 1
-            break
-    if draw == 0:
-        ax.add_patch(patches.Circle([end[0], end[1]], facecolor='xkcd:violet'))
-        plt.plot([st[0], end[0]], [st[1], end[1]])
-        # remove exploration nodes from path
+            return False
+
+    # remove exploration nodes from path
+    if within_grid_bounds(end):
         obsLine.append(theLine)
+        return True
 
-    return end
+def within_grid_bounds(pt):
+    # grid bounds
+    xtop    = 600
+    xbottom = 0
+    ytop    = 600
+    ybottom = 0
 
-# TODO: implement k-d tree
-# find closest neighbor of q in T
-def nearest_neighbor(q, T):
+    x, y = pt
+    if ((x <= xtop) and (y <= ytop)) and ((x >= xbottom) and(y >= ybottom)):
+        return True
 
-    return q
+    return False
+
+# boolean check if point is collision-free
+def collision_free(st,end):
+    theLine = Line((st[0], st[1]),(end[0],end[1]))
+
+    for l in obsLine:
+        if (theLine.intersect(l))&(l.intersect(theLine)):
+            return False
+
+    # remove exploration nodes from path
+    if within_grid_bounds(end):
+        obsLine.append(theLine)
+        return True
+
+    else:
+        return False
+
+def draw(st, end):
+    ax.add_patch(patches.Circle([end[0], end[1]], facecolor='xkcd:violet'))
+    plt.plot([st[0], end[0]], [st[1], end[1]])
+    plt.pause(0.1)
+
 
 # progress by step_size along straight line between
-# q_near and q_rand (from q1 through q2 a distance set by step size)
+# q_near and q_rand (from q1 through q2 a distance
+# set by step size)
 def new_state(q1, q2):
+    eps = step_size/float(10)
     # protect against undefined slope
-    if (q2[0] - q1[0]) == 0:
+    if q2[0] - q1[0] == 0 :
+        new_x = q1[0]
         new_y = q2[1] + step_size
-
-        return q2[0], new_y
     # protect against slope of zero
-    elif q2[1] - q1[1] == 0:
-        new_x = q2[0] + step_size
-
-        return new_x, q2[1]
+    elif q2[1] - q1[1] ==0 :
+        new_x = q1[0] + step_size
+        new_y = q2[1]
     else:
-        m = float(q2[1] - q1[1])/ (q2[0] - q1[0])
+        m = q2[1] - q1[1]/ float(q2[0] - q1[0])
         b = -m*q2[1] + q2[0]
-        angle = atan(q2[1]/float(q2[0]))
+        angle = atan((q2[1]- q1[1])/ float((q2[0]-q1[0])))
 
-        x = step_size * cos(angle)
-        y = step_size * sin(angle)
+        new_x = q1[0] + step_size * cos(angle)
+        new_y = q1[1] + step_size * sin(angle)
 
-        return (x,y)
+    new_x = round(new_x, 2)
+    new_y = round(new_y, 2)
+    new = (new_x, new_y)
+
+    if collision_free(q1, new):
+        return new
 
 if __name__ == "__main__":
     import argparse
@@ -197,7 +292,7 @@ if __name__ == "__main__":
 
     obsLine = readObs("world_obstacles.txt")
 
-    build_rrt(start, 200)
+    build_rrt(start, goal, 5000)
     #
     # st = start
     # for x in range(10000):
