@@ -94,113 +94,6 @@ def add_start_and_goal(start_goal_path, ax):
 
     return start, goal
 
-# function that generates the ranomd configuration
-def get_rand(pos = None):
-    inc_x = random.randint(1,600)
-    inc_y = random.randint(1,600)
-
-    new_x = -1
-    new_y = -1
-
-    # add conditions so the new config is always inside the grid
-    while ((new_x > xtop)|(new_y > ytop))|((new_x < xbottom)|(new_y < ybottom)):
-        angle = random.uniform(0, 2*math.pi)
-        new_x = inc_x*math.cos(angle)
-        new_y = inc_y*math.sin(angle)
-
-    return round(new_x,2), round(new_y,2)
-
-def distance(p1, p2):
-    x1, y1 = p1
-    x2, y2 = p2
-
-    dx = x2 - x1
-    dy = y2 - y1
-
-    return math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
-
-# TODO: implement k-d tree
-# find closest neighbor of q in T
-def nearest_neighbor(q, T):
-    best_pt   = q
-    best_dist = xtop * 2
-
-    for v in T.vertices:
-        curr_dist = distance(q, v)
-        if curr_dist < best_dist:
-            best_pt   = v
-            best_dist = curr_dist
-
-    return best_pt
-
-def build_rrt(q, goal,n):
-    T = Tree(q, goal)
-    T.add_vertex(q)
-
-    # while(distance(q, goal) > step_size):
-    # bias 5% of time toward goal
-    bias_factor = n * 0.05
-    divisor = n / bias_factor
-
-    for k in range(n):
-        # add bias to goal
-        if k % divisor == 0:
-            q_rand = goal
-        else:
-            q_rand = get_rand()
-
-        q_new = extend(T, q_rand)
-
-
-    print "iterations over"
-
-    return T
-
-# progress the tree
-# from the initial q point to a random point
-# in free space
-# selects nearest vertex in rrt to given point
-def extend(T, q):
-    q_new = None
-
-    v = T.vertices
-    kdt = np.array(v)
-
-    # nearest neighbor calculation
-    tree = KDTree(kdt, metric='euclidean')
-    # selects nearest vertex in rrt to given point
-    if len(v) < 15:
-        dist, ind = tree.query([q], k = len(v))
-    else:
-        dist, ind = tree.query([q], k = 15)
-
-    near_list = []
-    for i in list(ind):
-        for j in range(len(i)):
-            near_list.append(tuple(kdt[i][j]))
-
-    for q_near in near_list :
-        # q_new = new_state(q_near, q)
-        # if q_new :
-        #     if collision_free(q_near, q_new):
-        #         T.add_edge(q_near, q_new)
-        #         T.add_vertex(q_new)
-        #         draw(q_near, q_new)
-        #
-        #         return q_new
-
-        if T.check_expansion(q_near):
-            q_new = new_state(q_near, q)
-            if q_new :
-                if collision_free(q_near, q_new):
-                    T.add_edge(q_near, q_new)
-                    T.add_vertex(q_new)
-                    draw(q_near, q_new)
-
-                    return q_new
-
-    return 'Trapped'
-
 # boolean check if point is collision-free
 def collision_free(st,end):
     theLine = Line((st[0], st[1]),(end[0],end[1]))
@@ -227,27 +120,80 @@ def within_grid_bounds(pt):
 
     return False
 
-# boolean check if point is collision-free
-def collision_free(st,end):
-    theLine = Line((st[0], st[1]),(end[0],end[1]))
-
-    for l in obsLine:
-        if (theLine.intersect(l))&(l.intersect(theLine)):
-            return False
-
-    # remove exploration nodes from path
-    if within_grid_bounds(end):
-        obsLine.append(theLine)
-        return True
-
-    else:
-        return False
-
 def draw(st, end):
     ax.add_patch(patches.Circle([end[0], end[1]], facecolor='xkcd:violet'))
     plt.plot([st[0], end[0]], [st[1], end[1]])
     plt.pause(0.1)
 
+# function that generates the ranomd configuration
+def get_rand(range = None):
+    if range:
+        inc_x = random.randint(goal[0] - range, goal[0] + range)
+        inc_y = random.randint(goal[0] - range, goal[0] + range)
+
+    else:
+        inc_x = random.randint(1,600)
+        inc_y = random.randint(1,600)
+
+    new_x = -1
+    new_y = -1
+
+    # add conditions so the new config is always inside the grid
+    while ((new_x > xtop)|(new_y > ytop))|((new_x < xbottom)|(new_y < ybottom)):
+        # angle = random.uniform(0, 2*math.pi)
+        new_x = inc_x #*math.cos(angle)
+        new_y = inc_y #*math.sin(angle)
+
+    return round(new_x,2), round(new_y,2)
+
+# make the tree more sparse
+def radial_surroundings(x1, x2):
+    near_list = nearest_neighbor
+
+def distance(p1, p2):
+    x1, y1 = p1
+    x2, y2 = p2
+
+    dx = x2 - x1
+    dy = y2 - y1
+
+    return math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
+
+# use k-d tree to find k nearest neighbors
+# def nearest_neighbor(q, T):
+#     v = T.vertices
+#     kdt = np.array(v)
+#
+#     # nearest neighbor calculation
+#     tree = KDTree(kdt, metric='euclidean')
+#     # selects nearest vertex in rrt to given point
+#     # if len(v) < 5:
+#     #     dist, ind = tree.query([q], k = len(v))
+#     # else:
+#     #     dist, ind = tree.query([q], k = 5)
+#
+#     dist, ind = tree.query([q], k = 1)
+#
+#     near_list = []
+#     for i in list(ind):
+#         for j in range(len(i)):
+#             near_list.append(tuple(kdt[i][j]))
+#
+#     return near_list
+
+# TODO: implement k-d tree
+# find closest neighbor of q in T
+def nearest_neighbor(q, T):
+    best_pt   = q
+    best_dist = xtop * 2
+
+    for v in T.vertices:
+        curr_dist = distance(q, v)
+        if curr_dist < best_dist:
+            best_pt   = v
+            best_dist = curr_dist
+
+    return best_pt
 
 # progress by step_size along straight line between
 # q_near and q_rand (from q1 through q2 a distance
@@ -277,6 +223,83 @@ def new_state(q1, q2):
     if collision_free(q1, new):
         return new
 
+def build_rrt(q, goal,n):
+    T = Tree(q, goal)
+    T.add_vertex(q)
+
+    # while(distance(q, goal) > step_size):
+    # bias 5% of time toward goal
+    bias_factor = n * 0.05
+    divisor = n / bias_factor
+    q_new = q
+    for k in range(n):
+        # add bias to goal
+        if k % divisor == 0:
+            q_rand = goal
+
+        near =  nearest_neighbor(q_new, T)
+        if distance(near, goal) < step_size:
+            if collision_free(near, goal):
+                T.add_edge(near, goal)
+                draw(near, goal)
+                print "GOAL REACHED"
+
+                break
+            else:
+                q_rand = get_rand()
+
+        elif distance(near, goal) < 3 * step_size:
+            q_rand = get_rand(2 * step_size)
+            # print "NEAR GOAL "
+
+        else:
+            q_rand = get_rand()
+
+        ex = extend(T, q_rand)
+        if ex:
+            q_new = ex
+
+    print "iterations over"
+
+    return T
+
+# extends tree in direction of passed q
+# from nearest vertex in rrt
+def extend(T, q):
+    q_new = None
+    # near_list = nearest_neighbor(q, T)
+    q_near = nearest_neighbor(q, T)
+
+    # for q_near in near_list :
+        # if q_rand is within a step size, connect it to nearest node
+    if distance(q_near, q) < step_size:
+        if collision_free(q_near, q):
+            T.add_edge(q_near, q)
+            draw(q_near, q)
+            # if q == goal:
+            #     return 'Goal Reached'
+
+            # return 'Reached'
+            return q
+    else:
+        q_new = new_state(q_near, q)
+        if q_new :
+            if collision_free(q_near, q_new):
+                T.add_edge(q_near, q_new)
+                draw(q_near, q_new)
+
+                return q_new
+
+        # elif T.check_expansion(q_near):
+        #     q_new = new_state(q_near, q)
+        #     if q_new :
+        #         if collision_free(q_near, q_new):
+        #             T.add_edge(q_near, q_new)
+        #             draw(q_near, q_new)
+        #
+        #             return 'Advanced'
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -292,7 +315,7 @@ if __name__ == "__main__":
 
     obsLine = readObs("world_obstacles.txt")
 
-    build_rrt(start, goal, 10000)
+    build_rrt(start, goal, 20000)
     #
     # st = start
     # for x in range(10000):
