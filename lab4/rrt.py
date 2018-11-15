@@ -120,9 +120,13 @@ def within_grid_bounds(pt):
 
     return False
 
-def draw(st, end):
+def draw(st, end, color=None):
     ax.add_patch(patches.Circle([end[0], end[1]], facecolor='xkcd:violet'))
     plt.plot([st[0], end[0]], [st[1], end[1]])
+
+    if color:
+        plt.plot([st[0], end[0]], [st[1], end[1]], color)
+
     plt.pause(0.1)
 
 # function that generates the ranomd configuration
@@ -158,28 +162,6 @@ def distance(p1, p2):
     dy = y2 - y1
 
     return math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
-
-# use k-d tree to find k nearest neighbors
-# def nearest_neighbor(q, T):
-#     v = T.vertices
-#     kdt = np.array(v)
-#
-#     # nearest neighbor calculation
-#     tree = KDTree(kdt, metric='euclidean')
-#     # selects nearest vertex in rrt to given point
-#     # if len(v) < 5:
-#     #     dist, ind = tree.query([q], k = len(v))
-#     # else:
-#     #     dist, ind = tree.query([q], k = 5)
-#
-#     dist, ind = tree.query([q], k = 1)
-#
-#     near_list = []
-#     for i in list(ind):
-#         for j in range(len(i)):
-#             near_list.append(tuple(kdt[i][j]))
-#
-#     return near_list
 
 # TODO: implement k-d tree
 # find closest neighbor of q in T
@@ -223,6 +205,44 @@ def new_state(q1, q2):
     if collision_free(q1, new):
         return new
 
+def dijsktra(T, start, goal):
+    dists = T.dists
+    shortest_paths = {start: (None, 0)}
+    v = start
+    visited = set()
+
+    while v != goal:
+        visited.add(v)
+        connected_nodes = T.edges[v]
+
+        for node in connected_nodes:
+            weight = dists[v, node] + shortest_paths[v][1]
+            if node not in shortest_paths:
+                shortest_paths[node] = (v, weight)
+            else:
+                curr_shortest_weight = shortest_paths[node][1]
+                if curr_shortest_weight > weight:
+                    shortest_paths[node] = (v, weight)
+
+        next_destinations = {node: shortest_paths[node] for node in shortest_paths if node not in visited}
+
+        if not next_destinations:
+            return "Route Not Possible"
+
+        v = min(next_destinations, key=lambda k: next_destinations[k][1])
+
+
+    # Work back through destinations in shortest path
+    path = []
+    while v is not None:
+        path.append(v)
+        next_node = shortest_paths[v][0]
+        v = next_node
+    # Reverse path
+    path = path[::-1]
+    return path
+
+
 def build_rrt(q, goal,n):
     T = Tree(q, goal)
     T.add_vertex(q)
@@ -241,9 +261,10 @@ def build_rrt(q, goal,n):
         if distance(near, goal) < step_size:
             if collision_free(near, goal):
                 T.add_edge(near, goal)
+                T.fill_distances(near, goal, distance(near, goal))
                 draw(near, goal)
-                print "GOAL REACHED"
-
+                # print "GOAL REACHED"
+                # dijsktra(T,start,goal)
                 break
             else:
                 q_rand = get_rand()
@@ -258,6 +279,10 @@ def build_rrt(q, goal,n):
         ex = extend(T, q_rand)
         if ex:
             q_new = ex
+        #
+        # if k == 100:
+        #     dijsktra(T,start,goal)
+        #     break
 
     print "iterations over"
 
@@ -270,35 +295,24 @@ def extend(T, q):
     # near_list = nearest_neighbor(q, T)
     q_near = nearest_neighbor(q, T)
 
-    # for q_near in near_list :
-        # if q_rand is within a step size, connect it to nearest node
+    # if q_rand is within a step size, connect it to nearest node
     if distance(q_near, q) < step_size:
         if collision_free(q_near, q):
             T.add_edge(q_near, q)
+            T.fill_distances(q_near, q, distance(q_near, q))
             draw(q_near, q)
-            # if q == goal:
-            #     return 'Goal Reached'
 
-            # return 'Reached'
             return q
     else:
         q_new = new_state(q_near, q)
         if q_new :
             if collision_free(q_near, q_new):
                 T.add_edge(q_near, q_new)
+                T.fill_distances(q_near, q_new, distance(q_near, q_new))
+
                 draw(q_near, q_new)
 
                 return q_new
-
-        # elif T.check_expansion(q_near):
-        #     q_new = new_state(q_near, q)
-        #     if q_new :
-        #         if collision_free(q_near, q_new):
-        #             T.add_edge(q_near, q_new)
-        #             draw(q_near, q_new)
-        #
-        #             return 'Advanced'
-
 
 if __name__ == "__main__":
     import argparse
@@ -315,23 +329,10 @@ if __name__ == "__main__":
 
     obsLine = readObs("world_obstacles.txt")
 
-    build_rrt(start, goal, 20000)
-    #
-    # st = start
-    # for x in range(10000):
-    #     end = get_rand(st);
-    #     theLine = Line((st[0], st[1]),(end[0],end[1]))
-    #
-    #     draw = 0
-    #     for l in obsLine:
-    #         if (theLine.intersect(l))&(l.intersect(theLine)):
-    #             draw = 1
-    #             break
-    #     if draw == 0:
-    #         ax.add_patch(patches.Circle([end[0], end[1]], facecolor='xkcd:violet'))
-    #         plt.plot([st[0], end[0]], [st[1], end[1]])
-    #         st = end
-    #         # remove exploration nodes from path
-    #         obsLine.append(theLine)
+    T = build_rrt(start, goal, 20000)
+    shortest_path = dijsktra(T,start, goal)
+    print shortest_path
+    for i in range(len(shortest_path) -1):
+        draw(shortest_path[i], shortest_path[i+1] ,'xkcd:yellow')
 
     plt.show()
