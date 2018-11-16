@@ -303,7 +303,6 @@ def bidirectional_rrt(ts, tg, n = 5000):
     return ts
 
 def build_rrt(T, q, goal, n=5000):
-    print "STARTING AT ", q
     # while(distance(q, goal) > step_size):
     # bias 5% of time toward goal
     bias_factor = n * 0.05
