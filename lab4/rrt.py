@@ -391,8 +391,8 @@ if __name__ == "__main__":
         T = bidirectional_rrt(T1, T2)
 
     else:
+        T = Tree(start, goal)
         build_rrt(T, T.start, T.goal, 20000)
-
 
     shortest_path = dijsktra(T,start, goal)
 
