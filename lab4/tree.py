@@ -15,7 +15,7 @@ class Tree():
     def add_edge(self, x_near, x_new):
         self.add_vertex(x_near)
         self.add_vertex(x_new)
-        # self.edges.append((x_near, x_new))
+
         if x_near in self.edges.keys():
             self.edges[x_near].append(x_new)
         else:

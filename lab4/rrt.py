@@ -9,8 +9,7 @@ from matplotlib.path import Path
 import matplotlib.patches as patches
 import random, math
 from math import cos, sin, atan
-from multiprocessing import Process
-import thread
+from itertools import cycle
 
 # global variables
 step_size = 75
@@ -151,10 +150,6 @@ def get_rand(range = None):
 
     return round(new_x,2), round(new_y,2)
 
-# make the tree more sparse
-def radial_surroundings(x1, x2):
-    near_list = nearest_neighbor
-
 def distance(p1, p2):
     x1, y1 = p1
     x2, y2 = p2
@@ -243,17 +238,69 @@ def dijsktra(T, start, goal):
     path = path[::-1]
     return path
 
-def bidirectional_rrt(ts, tg):
-    start =  ts.start
-    goal  =  tg.start
+def combine_trees(t1, t2):
+    for i in t2.edges:
+        for j in t2.edges[i]:
+            t1.add_edge(i,j)
+            t1.fill_distances(i,j, t2.dists[(i,j)])
 
-    thread.start_new_thread(build_rrt(ts, start, goal), ())
-    thread.start_new_thread(build_rrt(tg, goal, start), ())
+def bidirectional_rrt(ts, tg, n = 5000):
+    alternate = cycle(range(2))
 
-    # p1 = Process(target =  build_rrt(ts, start, goal))
-    # p2 = Process(target = build_rrt(tg, goal, start))
-    # p1.start()
-    # p2.start()
+    # while(distance(q, goal) > step_size):
+    # bias 5% of time toward goal
+    bias_factor = n * 0.05
+    divisor = n / bias_factor
+
+    q_new = ts.start
+
+    for k in range(n):
+        # Alternate between trees to grow from
+        toggle = alternate.next()
+        if  toggle == 0:
+            T = ts
+            start =  ts.start
+            goal  =  ts.goal
+            color = 'xkcd:orange'
+        else:
+            T = tg
+            start =  tg.start
+            goal  =  tg.goal
+            color = 'xkcd:blue'
+
+        # add bias to goal
+        if k % divisor == 0:
+            q_rand = goal
+
+        near1 =  nearest_neighbor(q_new, ts)
+        near2 =  nearest_neighbor(q_new, tg)
+
+        if distance(near1, near2) < step_size:
+            if collision_free(near1, near2):
+                T.add_edge(near1, near2)
+                T.fill_distances(near1, near2, distance(near1, near2))
+                draw(near1, near2, color)
+                print "GOAL REACHED"
+
+                if toggle == 0:
+                    combine_trees(T,tg)
+                else:
+                    combine_trees(T,ts)
+
+                break
+            else:
+                q_rand = get_rand()
+        elif distance(near1, near2) < 3 * step_size:
+            q_rand = get_rand(2 * step_size)
+            # print "NEAR GOAL "
+        else:
+            q_rand = get_rand()
+
+        ex = extend(T, q_rand, color)
+        if ex:
+            q_new = ex
+
+    return ts
 
 def build_rrt(T, q, goal, n=5000):
     print "STARTING AT ", q
@@ -274,7 +321,6 @@ def build_rrt(T, q, goal, n=5000):
                 T.fill_distances(near, goal, distance(near, goal))
                 draw(near, goal)
                 # print "GOAL REACHED"
-                # dijsktra(T,start,goal)
                 break
             else:
                 q_rand = get_rand()
@@ -294,7 +340,7 @@ def build_rrt(T, q, goal, n=5000):
 
 # extends tree in direction of passed q
 # from nearest vertex in rrt
-def extend(T, q):
+def extend(T, q, color):
     q_new = None
     # near_list = nearest_neighbor(q, T)
     q_near = nearest_neighbor(q, T)
@@ -304,7 +350,7 @@ def extend(T, q):
         if collision_free(q_near, q):
             T.add_edge(q_near, q)
             T.fill_distances(q_near, q, distance(q_near, q))
-            draw(q_near, q)
+            draw(q_near, q, color)
 
             return q
     else:
@@ -314,7 +360,7 @@ def extend(T, q):
                 T.add_edge(q_near, q_new)
                 T.fill_distances(q_near, q_new, distance(q_near, q_new))
 
-                draw(q_near, q_new)
+                draw(q_near, q_new, color)
 
                 return q_new
 
@@ -342,18 +388,15 @@ if __name__ == "__main__":
         T1 = Tree(start, goal)
         T2 = Tree(goal, start)
 
-        bidirectional_rrt(T1, T2)
-
-        # return a single tree once connected
+        T = bidirectional_rrt(T1, T2)
 
     else:
-        T = Tree(start, goal)
-        build_rrt(T.start, T.goal, 20000)
+        build_rrt(T, T.start, T.goal, 20000)
 
 
-    # shortest_path = dijsktra(T,start, goal)
-    #
-    # for i in range(len(shortest_path) -1):
-    #     draw(shortest_path[i], shortest_path[i+1] ,'xkcd:yellow')
-    #
-    # plt.show()
+    shortest_path = dijsktra(T,start, goal)
+
+    for i in range(len(shortest_path) -1):
+        draw(shortest_path[i], shortest_path[i+1] ,'xkcd:yellow')
+
+    plt.show()
