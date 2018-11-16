@@ -1,9 +1,8 @@
 class Tree():
-    def __init__(self, start, goal ):
+    def __init__(self, start, goal):
         self.start = start
-        self.goal  = goal
+        self.goal = goal
         self.vertices = []
-        # self.edges = []
         self.edges = {}
         self.dists = {}
 

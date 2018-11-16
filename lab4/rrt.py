@@ -10,6 +10,7 @@ import matplotlib.patches as patches
 import random, math
 from math import cos, sin, atan
 from multiprocessing import Process
+import thread
 
 # global variables
 step_size = 75
@@ -243,13 +244,16 @@ def dijsktra(T, start, goal):
     return path
 
 def bidirectional_rrt(ts, tg):
-    start =  ts.root
-    goal  =  tg.root
+    start =  ts.start
+    goal  =  tg.start
 
-    p1 = Process(target =  build_rrt(ts, start, goal))
-    p2 = Process(target = build_rrt(tg, goal, start))
-    p1.start()
-    p2.start()
+    thread.start_new_thread(build_rrt(ts, start, goal), ())
+    thread.start_new_thread(build_rrt(tg, goal, start), ())
+
+    # p1 = Process(target =  build_rrt(ts, start, goal))
+    # p2 = Process(target = build_rrt(tg, goal, start))
+    # p1.start()
+    # p2.start()
 
 def build_rrt(T, q, goal, n=5000):
     print "STARTING AT ", q
@@ -335,16 +339,16 @@ if __name__ == "__main__":
     obsLine = readObs("world_obstacles.txt")
 
     if args.b:
-        T1 = Tree(start)
-        T2 = Tree(goal)
+        T1 = Tree(start, goal)
+        T2 = Tree(goal, start)
 
         bidirectional_rrt(T1, T2)
 
         # return a single tree once connected
 
     else:
-        T = Tree(start)
-        build_rrt(start, goal, 20000)
+        T = Tree(start, goal)
+        build_rrt(T.start, T.goal, 20000)
 
 
     # shortest_path = dijsktra(T,start, goal)
