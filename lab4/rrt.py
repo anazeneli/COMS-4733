@@ -3,13 +3,13 @@
 from __future__ import division
 from line import Line
 from tree import Tree
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
-from sklearn.neighbors import KDTree
 import matplotlib.patches as patches
-import numpy as np
 import random, math
 from math import cos, sin, atan
+from multiprocessing import Process
 
 # global variables
 step_size = 75
@@ -242,11 +242,17 @@ def dijsktra(T, start, goal):
     path = path[::-1]
     return path
 
+def bidirectional_rrt(ts, tg):
+    start =  ts.root
+    goal  =  tg.root
 
-def build_rrt(q, goal,n):
-    T = Tree(q, goal)
-    T.add_vertex(q)
+    p1 = Process(target =  build_rrt(ts, start, goal))
+    p2 = Process(target = build_rrt(tg, goal, start))
+    p1.start()
+    p2.start()
 
+def build_rrt(T, q, goal, n=5000):
+    print "STARTING AT ", q
     # while(distance(q, goal) > step_size):
     # bias 5% of time toward goal
     bias_factor = n * 0.05
@@ -279,12 +285,6 @@ def build_rrt(q, goal,n):
         ex = extend(T, q_rand)
         if ex:
             q_new = ex
-        #
-        # if k == 100:
-        #     dijsktra(T,start,goal)
-        #     break
-
-    print "iterations over"
 
     return T
 
@@ -321,18 +321,35 @@ if __name__ == "__main__":
                         help="File path for obstacle set")
     parser.add_argument('start_goal_path',
                         help="File path for obstacle set")
+
+    parser.add_argument('-b', action='store_true',
+                        help="Optional flag for bidirectional RRT (-b)")
+
     args = parser.parse_args()
 
     fig, ax = plt.subplots()
     path = build_obstacle_course(args.obstacle_path, ax)
     start, goal = add_start_and_goal(args.start_goal_path, ax)
 
+    # collision detection helper function
     obsLine = readObs("world_obstacles.txt")
 
-    T = build_rrt(start, goal, 20000)
-    shortest_path = dijsktra(T,start, goal)
-    print shortest_path
-    for i in range(len(shortest_path) -1):
-        draw(shortest_path[i], shortest_path[i+1] ,'xkcd:yellow')
+    if args.b:
+        T1 = Tree(start)
+        T2 = Tree(goal)
 
-    plt.show()
+        bidirectional_rrt(T1, T2)
+
+        # return a single tree once connected
+
+    else:
+        T = Tree(start)
+        build_rrt(start, goal, 20000)
+
+
+    # shortest_path = dijsktra(T,start, goal)
+    #
+    # for i in range(len(shortest_path) -1):
+    #     draw(shortest_path[i], shortest_path[i+1] ,'xkcd:yellow')
+    #
+    # plt.show()
