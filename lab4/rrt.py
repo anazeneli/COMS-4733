@@ -340,7 +340,7 @@ def build_rrt(T, q, goal, n=5000):
 
 # extends tree in direction of passed q
 # from nearest vertex in rrt
-def extend(T, q, color):
+def extend(T, q, color=None):
     q_new = None
     # near_list = nearest_neighbor(q, T)
     q_near = nearest_neighbor(q, T)
